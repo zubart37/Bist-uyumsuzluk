@@ -1,0 +1,23 @@
+name: BIST 50 Tarama
+
+on:
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Repository indir
+        uses: actions/checkout@v4
+
+      - name: Python kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Gereksinimleri kur
+        run: pip install -r requirements.txt
+
+      - name: BIST 50 taramasını çalıştır
+        run: python scanner.py
