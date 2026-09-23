@@ -2,3 +2,4 @@ requests
 yfinance
 pandas
 numpy
+lxml
