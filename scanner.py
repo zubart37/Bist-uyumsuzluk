@@ -261,21 +261,21 @@ def scan_stocks():
                         f"RSI: {signal['rsi1']} → "
                         f"{signal['rsi2']}"
                     )
-message = (
-    "🚨 BIST UYUMSUZLUK\n\n"
-    f"{'🟢' if signal['type'] == 'POZİTİF UYUMSUZLUK' else '🔴'} "
-    f"{signal['type']}\n"
-    f"Hisse: {symbol.replace('.IS', '')}\n"
-    "Periyot: 1D\n"
-    "Gösterge: RSI(14)\n\n"
-    f"Fiyat: {signal['price1']} → {signal['price2']}\n"
-    f"RSI: {signal['rsi1']} → {signal['rsi2']}\n\n"
-    f"Tarih: {signal['date']}"
-)
+                message = (
+                    "🚨 BIST UYUMSUZLUK\n\n"
+                    f"{'🟢' if signal['type'] == 'POZİTİF UYUMSUZLUK' else '🔴'} "
+                    f"{signal['type']}\n"
+                    f"Hisse: {symbol.replace('.IS', '')}\n"
+                    "Periyot: 1D\n"
+                    "Gösterge: RSI(14)\n\n"
+                    f"Fiyat: {signal['price1']} → {signal['price2']}\n"
+                    f"RSI: {signal['rsi1']} → {signal['rsi2']}\n\n"
+                    f"Tarih: {signal['date']}"
+                )
 
-send_telegram(message)
-                    total_signals += 1
+                send_telegram(message)
 
+                total_signals += 1
             else:
                 print("Sinyal yok.")
 
