@@ -228,19 +228,40 @@ def check_divergence(data):
             })
 
     return signals
+
 # ==========================================
-# 50 HİSSEYİ TARA
+# BIST TÜM HİSSELERİ TARA
 # ==========================================
 
 def scan_stocks():
 
     print("=" * 50)
-    print("BIST 50 UYUMSUZLUK TARAMASI")
+    print("BIST TÜM UYUMSUZLUK TARAMASI")
     print("Periyot: 1D")
     print("Gösterge: RSI(14)")
+    print(f"Toplam hisse: {len(STOCKS)}")
     print("=" * 50)
 
     total_signals = 0
+
+    print("\nBIST TÜM verileri toplu olarak indiriliyor...")
+
+    try:
+
+        all_data = yf.download(
+            tickers=STOCKS,
+            period="1y",
+            interval="1d",
+            auto_adjust=False,
+            progress=False,
+            group_by="ticker",
+            threads=True
+        )
+
+    except Exception as error:
+
+        print(f"Toplu veri indirme hatası: {error}")
+        return
 
     for symbol in STOCKS:
 
@@ -248,26 +269,39 @@ def scan_stocks():
 
             print(f"\nTaranıyor: {symbol}")
 
-            data = yf.download(
-                symbol,
-                period="1y",
-                interval="1d",
-                auto_adjust=False,
-                progress=False
-            )
+            if symbol not in all_data.columns.get_level_values(0):
 
-            if data.empty:
                 print("Veri bulunamadı.")
                 continue
 
-            # Bazı yfinance sürümlerinde kolonlar MultiIndex olabilir
+            data = all_data[symbol].copy()
+
+            if data.empty:
+
+                print("Veri bulunamadı.")
+                continue
+
             if isinstance(data.columns, pd.MultiIndex):
+
                 data.columns = data.columns.get_level_values(0)
 
             required = ["High", "Low", "Close"]
 
-            if not all(column in data.columns for column in required):
+            if not all(
+                column in data.columns
+                for column in required
+            ):
+
                 print("Gerekli fiyat verileri bulunamadı.")
+                continue
+
+            data = data.dropna(
+                subset=["High", "Low", "Close"]
+            )
+
+            if len(data) < 100:
+
+                print("Yeterli veri yok.")
                 continue
 
             signals = check_divergence(data)
@@ -280,30 +314,37 @@ def scan_stocks():
                     print(f"Hisse: {symbol}")
                     print(f"Tür: {signal['type']}")
                     print(f"Tarih: {signal['date']}")
+
                     print(
                         f"Fiyat: {signal['price1']} → "
                         f"{signal['price2']}"
                     )
+
                     print(
                         f"RSI: {signal['rsi1']} → "
                         f"{signal['rsi2']}"
                     )
-                message = (
-                    "🚨 BIST UYUMSUZLUK\n\n"
-                    f"{'🟢' if signal['type'] == 'POZİTİF UYUMSUZLUK' else '🔴'} "
-                    f"{signal['type']}\n"
-                    f"Hisse: {symbol.replace('.IS', '')}\n"
-                    "Periyot: 1D\n"
-                    "Gösterge: RSI(14)\n\n"
-                    f"Fiyat: {signal['price1']} → {signal['price2']}\n"
-                    f"RSI: {signal['rsi1']} → {signal['rsi2']}\n\n"
-                    f"Tarih: {signal['date']}"
-                )
 
-                send_telegram(message)
+                    message = (
+                        "🚨 BIST UYUMSUZLUK\n\n"
+                        f"{'🟢' if signal['type'] == 'POZİTİF UYUMSUZLUK' else '🔴'} "
+                        f"{signal['type']}\n"
+                        f"Hisse: {symbol.replace('.IS', '')}\n"
+                        "Periyot: 1D\n"
+                        "Gösterge: RSI(14)\n\n"
+                        f"Fiyat: {signal['price1']} → "
+                        f"{signal['price2']}\n"
+                        f"RSI: {signal['rsi1']} → "
+                        f"{signal['rsi2']}\n\n"
+                        f"Tarih: {signal['date']}"
+                    )
 
-                total_signals += 1
+                    send_telegram(message)
+
+                    total_signals += 1
+
             else:
+
                 print("Sinyal yok.")
 
         except Exception as error:
@@ -313,13 +354,10 @@ def scan_stocks():
             )
 
     print("\n" + "=" * 50)
-    print(f"Tarama tamamlandı. Toplam sinyal: {total_signals}")
+    print(
+        f"Tarama tamamlandı. Toplam sinyal: "
+        f"{total_signals}"
+    )
     print("=" * 50)
-
-
-# ==========================================
-# PROGRAMI BAŞLAT
-# ==========================================
-
 if __name__ == "__main__":
     scan_stocks()
