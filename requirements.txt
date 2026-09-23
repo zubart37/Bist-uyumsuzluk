@@ -1,1 +1,4 @@
 requests
+yfinance
+pandas
+numpy
