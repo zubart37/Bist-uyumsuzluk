@@ -1,0 +1,1 @@
+print("BIST Uyumsuzluk Tarayıcı başlatıldı")
