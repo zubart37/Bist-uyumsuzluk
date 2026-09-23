@@ -2,6 +2,50 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 from stocks import STOCKS
+import os
+import requests
+# ==========================================
+# TELEGRAM
+# ==========================================
+
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+
+
+def send_telegram(message):
+
+    if not TELEGRAM_TOKEN:
+        print("Telegram token bulunamadı.")
+        return
+
+    base_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
+
+    try:
+        updates = requests.get(
+            f"{base_url}/getUpdates",
+            timeout=20
+        ).json()
+
+        results = updates.get("result", [])
+
+        if not results:
+            print("Telegram sohbeti bulunamadı.")
+            return
+
+        chat_id = results[-1]["message"]["chat"]["id"]
+
+        requests.post(
+            f"{base_url}/sendMessage",
+            data={
+                "chat_id": chat_id,
+                "text": message
+            },
+            timeout=20
+        )
+
+        print("Telegram bildirimi gönderildi.")
+
+    except Exception as error:
+        print(f"Telegram hatası: {error}")
 
 # ==========================================
 # BIST 50 HİSSELERİ
@@ -217,7 +261,19 @@ def scan_stocks():
                         f"RSI: {signal['rsi1']} → "
                         f"{signal['rsi2']}"
                     )
+message = (
+    "🚨 BIST UYUMSUZLUK\n\n"
+    f"{'🟢' if signal['type'] == 'POZİTİF UYUMSUZLUK' else '🔴'} "
+    f"{signal['type']}\n"
+    f"Hisse: {symbol.replace('.IS', '')}\n"
+    "Periyot: 1D\n"
+    "Gösterge: RSI(14)\n\n"
+    f"Fiyat: {signal['price1']} → {signal['price2']}\n"
+    f"RSI: {signal['rsi1']} → {signal['rsi2']}\n\n"
+    f"Tarih: {signal['date']}"
+)
 
+send_telegram(message)
                     total_signals += 1
 
             else:
