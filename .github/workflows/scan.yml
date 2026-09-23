@@ -3,6 +3,9 @@ name: BIST 50 Tarama
 on:
   workflow_dispatch:
 
+  schedule:
+    - cron: "30 16 * * 1-5"
+
 jobs:
   scan:
     runs-on: ubuntu-latest
