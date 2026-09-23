@@ -117,7 +117,10 @@ def find_pivot_highs(series, left=3, right=3):
 # UYUMSUZLUK KONTROLÜ
 # ==========================================
 
+
 def check_divergence(data):
+
+    MIN_PIVOT_DISTANCE = 10
 
     if len(data) < 100:
         return []
@@ -126,7 +129,7 @@ def check_divergence(data):
 
     data["RSI"] = calculate_rsi(data["Close"])
 
-    # Son 6 ay civarında çalış
+    # Son 6 ay civarındaki veriyi kullan
     data = data.tail(180).copy()
 
     lows = find_pivot_lows(data["Low"])
@@ -134,16 +137,28 @@ def check_divergence(data):
 
     signals = []
 
-    # --------------------------------------
+    # ==========================================
     # POZİTİF UYUMSUZLUK
     # Fiyat: Daha düşük dip
     # RSI: Daha yüksek dip
-    # --------------------------------------
+    # ==========================================
 
-    if len(lows) >= 2:
+    low_pairs = []
 
-        first = lows[-2]
-        second = lows[-1]
+    for i in range(len(lows) - 1):
+        for j in range(i + 1, len(lows)):
+
+            first = lows[i]
+            second = lows[j]
+
+            # İki dip arasında en az 10 tamamlanmış mum
+            if second - first >= MIN_PIVOT_DISTANCE:
+                low_pairs.append((first, second))
+
+    if low_pairs:
+
+        # En yeni uygun dip çiftini kullan
+        first, second = low_pairs[-1]
 
         price1 = data["Low"].iloc[first]
         price2 = data["Low"].iloc[second]
@@ -157,6 +172,7 @@ def check_divergence(data):
             and not pd.isna(rsi1)
             and not pd.isna(rsi2)
         ):
+
             signals.append({
                 "type": "POZİTİF UYUMSUZLUK",
                 "date": data.index[second].strftime("%Y-%m-%d"),
@@ -166,16 +182,28 @@ def check_divergence(data):
                 "rsi2": round(rsi2, 2)
             })
 
-    # --------------------------------------
+    # ==========================================
     # NEGATİF UYUMSUZLUK
     # Fiyat: Daha yüksek tepe
     # RSI: Daha düşük tepe
-    # --------------------------------------
+    # ==========================================
 
-    if len(highs) >= 2:
+    high_pairs = []
 
-        first = highs[-2]
-        second = highs[-1]
+    for i in range(len(highs) - 1):
+        for j in range(i + 1, len(highs)):
+
+            first = highs[i]
+            second = highs[j]
+
+            # İki tepe arasında en az 10 tamamlanmış mum
+            if second - first >= MIN_PIVOT_DISTANCE:
+                high_pairs.append((first, second))
+
+    if high_pairs:
+
+        # En yeni uygun tepe çiftini kullan
+        first, second = high_pairs[-1]
 
         price1 = data["High"].iloc[first]
         price2 = data["High"].iloc[second]
@@ -189,6 +217,7 @@ def check_divergence(data):
             and not pd.isna(rsi1)
             and not pd.isna(rsi2)
         ):
+
             signals.append({
                 "type": "NEGATİF UYUMSUZLUK",
                 "date": data.index[second].strftime("%Y-%m-%d"),
@@ -199,8 +228,6 @@ def check_divergence(data):
             })
 
     return signals
-
-
 # ==========================================
 # 50 HİSSEYİ TARA
 # ==========================================
