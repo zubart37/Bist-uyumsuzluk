@@ -1,23 +1,12 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
+from stocks import STOCKS
 
 # ==========================================
 # BIST 50 HİSSELERİ
 # ==========================================
 
-STOCKS = [
-    "AEFES.IS", "AKBNK.IS", "ALARK.IS", "ARCLK.IS", "ASELS.IS",
-    "ASTOR.IS", "BIMAS.IS", "BRSAN.IS", "CCOLA.IS", "CIMSA.IS",
-    "DOAS.IS", "EKGYO.IS", "ENJSA.IS", "EREGL.IS", "FROTO.IS",
-    "GARAN.IS", "GUBRF.IS", "HEKTS.IS", "ISCTR.IS", "KCHOL.IS",
-    "KONTR.IS", "KOZAA.IS", "KOZAL.IS", "KRDMD.IS", "MGROS.IS",
-    "MIATK.IS", "ODAS.IS", "OYAKC.IS", "PETKM.IS", "PGSUS.IS",
-    "SAHOL.IS", "SASA.IS", "SISE.IS", "SKBNK.IS", "SMRTG.IS",
-    "SOKM.IS", "TCELL.IS", "THYAO.IS", "TKFEN.IS", "TOASO.IS",
-    "TUPRS.IS", "TTKOM.IS", "ULKER.IS", "VAKBN.IS", "YKBNK.IS",
-    "ENKAI.IS", "HALKB.IS", "ISGYO.IS", "OYAKC.IS", "TAVHL.IS"
-]
 
 # ==========================================
 # RSI HESAPLAMA
