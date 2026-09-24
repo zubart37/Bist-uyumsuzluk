@@ -1,19 +1,20 @@
-name: BIST 50 Tarama
+name: BIST Tüm Tarama
 
 on:
+  schedule:
+    - cron: "0 8 * * 1-5"
   workflow_dispatch:
 
-  schedule:
--cron:"0 8 * * 1-5"
 jobs:
-  scan:
+  tarama:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Repository indir
+
+      - name: Depo indir
         uses: actions/checkout@v4
 
-      - name: Python kur
+      - name: Python kurulumu
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -21,7 +22,7 @@ jobs:
       - name: Gereksinimleri kur
         run: pip install -r requirements.txt
 
-      - name: BIST 50 taramasını çalıştır
+      - name: BIST Tüm taramasını çalıştır
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: python scanner.py
