@@ -4,6 +4,8 @@ import numpy as np
 from stocks import STOCKS
 import os
 import requests
+
+
 # ==========================================
 # TELEGRAM
 # ==========================================
@@ -20,6 +22,7 @@ def send_telegram(message):
     base_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
     try:
+
         updates = requests.get(
             f"{base_url}/getUpdates",
             timeout=20
@@ -45,11 +48,8 @@ def send_telegram(message):
         print("Telegram bildirimi gönderildi.")
 
     except Exception as error:
-        print(f"Telegram hatası: {error}")
 
-# ==========================================
-# BIST 50 HİSSELERİ
-# ==========================================
+        print(f"Telegram hatası: {error}")
 
 
 # ==========================================
@@ -57,6 +57,7 @@ def send_telegram(message):
 # ==========================================
 
 def calculate_rsi(series, period=14):
+
     delta = series.diff()
 
     gain = delta.clip(lower=0)
@@ -84,30 +85,42 @@ def calculate_rsi(series, period=14):
 # ==========================================
 
 def find_pivot_lows(series, left=3, right=3):
+
     pivots = []
 
     for i in range(left, len(series) - right):
-        window = series.iloc[i-left:i+right+1]
+
+        window = series.iloc[
+            i-left:i+right+1
+        ]
 
         if (
             series.iloc[i] == window.min()
-            and (window == series.iloc[i]).sum() == 1
+            and
+            (window == series.iloc[i]).sum() == 1
         ):
+
             pivots.append(i)
 
     return pivots
 
 
 def find_pivot_highs(series, left=3, right=3):
+
     pivots = []
 
     for i in range(left, len(series) - right):
-        window = series.iloc[i-left:i+right+1]
+
+        window = series.iloc[
+            i-left:i+right+1
+        ]
 
         if (
             series.iloc[i] == window.max()
-            and (window == series.iloc[i]).sum() == 1
+            and
+            (window == series.iloc[i]).sum() == 1
         ):
+
             pivots.append(i)
 
     return pivots
@@ -116,7 +129,6 @@ def find_pivot_highs(series, left=3, right=3):
 # ==========================================
 # UYUMSUZLUK KONTROLÜ
 # ==========================================
-
 
 def check_divergence(data):
 
@@ -127,107 +139,182 @@ def check_divergence(data):
 
     data = data.copy()
 
-    data["RSI"] = calculate_rsi(data["Close"])
+    data["RSI"] = calculate_rsi(
+        data["Close"]
+    )
 
-    # Son 6 ay civarındaki veriyi kullan
+    # Son 180 günlük veri
     data = data.tail(180).copy()
-
-    lows = find_pivot_lows(data["Low"])
-    highs = find_pivot_highs(data["High"])
 
     signals = []
 
     # ==========================================
-    # POZİTİF UYUMSUZLUK
-    # Fiyat: Daha düşük dip
-    # RSI: Daha yüksek dip
+    # SON TAMAMLANMIŞ GÜNLÜK MUM
     # ==========================================
 
-    low_pairs = []
+    current_index = len(data) - 1
 
-    for i in range(len(lows) - 1):
-        for j in range(i + 1, len(lows)):
+    current_date = data.index[current_index]
 
-            first = lows[i]
-            second = lows[j]
+    current_low = data["Low"].iloc[current_index]
 
-            # İki dip arasında en az 10 tamamlanmış mum
-            if second - first >= MIN_PIVOT_DISTANCE:
-                low_pairs.append((first, second))
+    current_high = data["High"].iloc[current_index]
 
-    if low_pairs:
+    current_rsi = data["RSI"].iloc[current_index]
 
-        # En yeni uygun dip çiftini kullan
-        first, second = low_pairs[-1]
+    # Son mum dışındaki geçmiş
+    previous_data = data.iloc[:-1].copy()
 
-        price1 = data["Low"].iloc[first]
-        price2 = data["Low"].iloc[second]
+    # ==========================================
+    # ÖNCEKİ DİPLER
+    # ==========================================
 
-        rsi1 = data["RSI"].iloc[first]
-        rsi2 = data["RSI"].iloc[second]
+    lows = find_pivot_lows(
+        previous_data["Low"],
+        left=3,
+        right=3
+    )
+
+    # ==========================================
+    # POZİTİF UYUMSUZLUK
+    #
+    # Son mum:
+    # Daha düşük dip
+    # RSI daha yüksek dip
+    #
+    # Minimum 10 mum mesafe
+    # ==========================================
+
+    positive_candidates = []
+
+    for pivot in lows:
+
+        # previous_data içindeki pivot ile
+        # son mum arasındaki mesafe
+        distance = (
+            current_index - pivot
+        )
+
+        if distance < MIN_PIVOT_DISTANCE:
+            continue
+
+        price1 = previous_data["Low"].iloc[pivot]
+
+        rsi1 = previous_data["RSI"].iloc[pivot]
 
         if (
-            price2 < price1
-            and rsi2 > rsi1
+            current_low < price1
+            and current_rsi > rsi1
             and not pd.isna(rsi1)
-            and not pd.isna(rsi2)
+            and not pd.isna(current_rsi)
         ):
 
-            signals.append({
-                "type": "POZİTİF UYUMSUZLUK",
-                "date": data.index[second].strftime("%Y-%m-%d"),
-                "price1": round(price1, 2),
-                "price2": round(price2, 2),
-                "rsi1": round(rsi1, 2),
-                "rsi2": round(rsi2, 2)
+            positive_candidates.append({
+                "pivot": pivot,
+                "price1": price1,
+                "price2": current_low,
+                "rsi1": rsi1,
+                "rsi2": current_rsi
             })
+
+    if positive_candidates:
+
+        candidate = positive_candidates[-1]
+
+        signals.append({
+            "type": "POZİTİF UYUMSUZLUK",
+            "date": current_date.strftime(
+                "%Y-%m-%d"
+            ),
+            "price1": round(
+                candidate["price1"], 2
+            ),
+            "price2": round(
+                candidate["price2"], 2
+            ),
+            "rsi1": round(
+                candidate["rsi1"], 2
+            ),
+            "rsi2": round(
+                candidate["rsi2"], 2
+            )
+        })
+
+    # ==========================================
+    # ÖNCEKİ TEPELER
+    # ==========================================
+
+    highs = find_pivot_highs(
+        previous_data["High"],
+        left=3,
+        right=3
+    )
 
     # ==========================================
     # NEGATİF UYUMSUZLUK
-    # Fiyat: Daha yüksek tepe
-    # RSI: Daha düşük tepe
+    #
+    # Son mum:
+    # Daha yüksek tepe
+    # RSI daha düşük tepe
+    #
+    # Minimum 10 mum mesafe
     # ==========================================
 
-    high_pairs = []
+    negative_candidates = []
 
-    for i in range(len(highs) - 1):
-        for j in range(i + 1, len(highs)):
+    for pivot in highs:
 
-            first = highs[i]
-            second = highs[j]
+        distance = (
+            current_index - pivot
+        )
 
-            # İki tepe arasında en az 10 tamamlanmış mum
-            if second - first >= MIN_PIVOT_DISTANCE:
-                high_pairs.append((first, second))
+        if distance < MIN_PIVOT_DISTANCE:
+            continue
 
-    if high_pairs:
+        price1 = previous_data["High"].iloc[pivot]
 
-        # En yeni uygun tepe çiftini kullan
-        first, second = high_pairs[-1]
-
-        price1 = data["High"].iloc[first]
-        price2 = data["High"].iloc[second]
-
-        rsi1 = data["RSI"].iloc[first]
-        rsi2 = data["RSI"].iloc[second]
+        rsi1 = previous_data["RSI"].iloc[pivot]
 
         if (
-            price2 > price1
-            and rsi2 < rsi1
+            current_high > price1
+            and current_rsi < rsi1
             and not pd.isna(rsi1)
-            and not pd.isna(rsi2)
+            and not pd.isna(current_rsi)
         ):
 
-            signals.append({
-                "type": "NEGATİF UYUMSUZLUK",
-                "date": data.index[second].strftime("%Y-%m-%d"),
-                "price1": round(price1, 2),
-                "price2": round(price2, 2),
-                "rsi1": round(rsi1, 2),
-                "rsi2": round(rsi2, 2)
+            negative_candidates.append({
+                "pivot": pivot,
+                "price1": price1,
+                "price2": current_high,
+                "rsi1": rsi1,
+                "rsi2": current_rsi
             })
 
+    if negative_candidates:
+
+        candidate = negative_candidates[-1]
+
+        signals.append({
+            "type": "NEGATİF UYUMSUZLUK",
+            "date": current_date.strftime(
+                "%Y-%m-%d"
+            ),
+            "price1": round(
+                candidate["price1"], 2
+            ),
+            "price2": round(
+                candidate["price2"], 2
+            ),
+            "rsi1": round(
+                candidate["rsi1"], 2
+            ),
+            "rsi2": round(
+                candidate["rsi2"], 2
+            )
+        })
+
     return signals
+
 
 # ==========================================
 # BIST TÜM HİSSELERİ TARA
@@ -236,128 +323,18 @@ def check_divergence(data):
 def scan_stocks():
 
     print("=" * 50)
-    print("BIST TÜM UYUMSUZLUK TARAMASI")
+
+    print(
+        "BIST TÜM GÜNLÜK UYUMSUZLUK TARAMASI"
+    )
+
     print("Periyot: 1D")
     print("Gösterge: RSI(14)")
-    print(f"Toplam hisse: {len(STOCKS)}")
-    print("=" * 50)
 
-    total_signals = 0
-
-    print("\nBIST TÜM verileri toplu olarak indiriliyor...")
-
-    try:
-
-        all_data = yf.download(
-            tickers=STOCKS,
-            period="1y",
-            interval="1d",
-            auto_adjust=False,
-            progress=False,
-            group_by="ticker",
-            threads=True
-        )
-
-    except Exception as error:
-
-        print(f"Toplu veri indirme hatası: {error}")
-        return
-
-    for symbol in STOCKS:
-
-        try:
-
-            print(f"\nTaranıyor: {symbol}")
-
-            if symbol not in all_data.columns.get_level_values(0):
-
-                print("Veri bulunamadı.")
-                continue
-
-            data = all_data[symbol].copy()
-
-            if data.empty:
-
-                print("Veri bulunamadı.")
-                continue
-
-            if isinstance(data.columns, pd.MultiIndex):
-
-                data.columns = data.columns.get_level_values(0)
-
-            required = ["High", "Low", "Close"]
-
-            if not all(
-                column in data.columns
-                for column in required
-            ):
-
-                print("Gerekli fiyat verileri bulunamadı.")
-                continue
-
-            data = data.dropna(
-                subset=["High", "Low", "Close"]
-            )
-
-            if len(data) < 100:
-
-                print("Yeterli veri yok.")
-                continue
-
-            signals = check_divergence(data)
-
-            if signals:
-
-                for signal in signals:
-
-                    print("\n🚨 SİNYAL BULUNDU")
-                    print(f"Hisse: {symbol}")
-                    print(f"Tür: {signal['type']}")
-                    print(f"Tarih: {signal['date']}")
-
-                    print(
-                        f"Fiyat: {signal['price1']} → "
-                        f"{signal['price2']}"
-                    )
-
-                    print(
-                        f"RSI: {signal['rsi1']} → "
-                        f"{signal['rsi2']}"
-                    )
-
-                    message = (
-                        "🚨 BIST UYUMSUZLUK\n\n"
-                        f"{'🟢' if signal['type'] == 'POZİTİF UYUMSUZLUK' else '🔴'} "
-                        f"{signal['type']}\n"
-                        f"Hisse: {symbol.replace('.IS', '')}\n"
-                        "Periyot: 1D\n"
-                        "Gösterge: RSI(14)\n\n"
-                        f"Fiyat: {signal['price1']} → "
-                        f"{signal['price2']}\n"
-                        f"RSI: {signal['rsi1']} → "
-                        f"{signal['rsi2']}\n\n"
-                        f"Tarih: {signal['date']}"
-                    )
-
-                    send_telegram(message)
-
-                    total_signals += 1
-
-            else:
-
-                print("Sinyal yok.")
-
-        except Exception as error:
-
-            print(
-                f"Hata oluştu: {symbol} -> {error}"
-            )
-
-    print("\n" + "=" * 50)
     print(
-        f"Tarama tamamlandı. Toplam sinyal: "
-        f"{total_signals}"
+        f"Toplam hisse: {len(STOCKS)}"
     )
+
     print("=" * 50)
-if __name__ == "__main__":
-    scan_stocks()
+
+   
